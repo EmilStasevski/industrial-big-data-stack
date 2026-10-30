@@ -1,0 +1,7 @@
+# Pin a stable toolchain: rustup installs it automatically on first build.
+# Nightly/beta builds can claim a version (e.g. 1.95) before its features are stable,
+# which breaks PyO3's feature detection (`cfg_select` error).
+[toolchain]
+channel = "stable"
+components = ["clippy", "rustfmt"]
+profile = "minimal"

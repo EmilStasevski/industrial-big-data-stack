@@ -1,0 +1,26 @@
+# Python / uv
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+dist/
+*.egg-info/
+
+# Rust (later)
+target/
+
+# Data: keep the folder skeleton, never commit the data itself
+data/**
+!data/**/
+!data/**/.gitkeep
+
+# Local config and secrets
+.env
+.env.*
+!.env.example
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
