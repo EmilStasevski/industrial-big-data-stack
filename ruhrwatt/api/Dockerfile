@@ -1,5 +1,5 @@
 # ruhrwatt-api: static Go binary on a distroless base (~10 MB image, no shell, non-root).
-FROM golang:1.23-bookworm AS build
+FROM golang:1.27-bookworm AS build
 WORKDIR /src
 COPY go.mod ./
 RUN go mod download
