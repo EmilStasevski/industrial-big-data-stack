@@ -24,14 +24,14 @@ jobs:
     name: Python + Rust
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: ruhrwatt
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
           cache-dependency-glob: ruhrwatt/uv.lock
@@ -56,8 +56,8 @@ jobs:
     name: Spark parity
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-java@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: "21"
@@ -65,7 +65,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: ruhrwatt
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
           cache-dependency-glob: ruhrwatt/uv.lock
@@ -80,8 +80,8 @@ jobs:
       run:
         working-directory: ruhrwatt/api
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: ruhrwatt/api/go.mod
       - name: gofmt
@@ -95,10 +95,10 @@ jobs:
     needs: [python-rust, go]
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
-      - uses: docker/setup-buildx-action@v3
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
       - name: Pipeline image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ruhrwatt
           target: runtime
@@ -107,7 +107,7 @@ jobs:
           cache-from: type=gha,scope=pipeline
           cache-to: type=gha,mode=max,scope=pipeline
       - name: API image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ruhrwatt/api
           tags: ruhrwatt-api:ci
