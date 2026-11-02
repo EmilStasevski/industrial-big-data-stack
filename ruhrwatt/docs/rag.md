@@ -66,6 +66,7 @@ Germany, 23/25-hour clock-change days, Amprion as the NRW proxy).
 | qwen3:8b, fixed tools + push-back | 19 | misread 12-row tables, invented a second half, clipped periods |
 | qwen3:14b, + ranking, grounding, data facts | 22 | dropped `start`/`end`, wrong sort column / direction |
 | qwen3:14b, + strict arguments, `order`, TSO fact | 23 | relative period dropped, two-part ranking, an invented date |
+| qwen3:14b, + relative periods, two-part rankings | 26 | 0 wrong; 2 partial (NRW vs DE comparison, extra cost items) |
 
 Each round's failures became tool or prompt fixes and regression cases in the eval set
 (rules for relative periods and two-part rankings came from the fourth run).

@@ -1,4 +1,4 @@
-.PHONY: setup test test-fast ci serving test-rust lint fmt bench smard-prices smard-all bronze silver gold backtest pipeline lab spark spark-parity bench-spark rag-setup rag-index ask chat rag-eval rag-batch go-test api api-check docker-build up down pipeline-docker timer-install
+.PHONY: readme-chart setup test test-fast ci serving test-rust lint fmt bench smard-prices smard-all bronze silver gold backtest pipeline lab spark spark-parity bench-spark rag-setup rag-index ask chat rag-eval rag-batch go-test api api-check docker-build up down pipeline-docker timer-install
 
 # Needs uv (https://docs.astral.sh/uv/) and a Rust toolchain (https://rustup.rs).
 setup:
@@ -26,6 +26,10 @@ fmt:
 # Rust core vs pure-Python reference (synthetic data; add --raw grid_load:DE for your own)
 bench:
 	uv run python benchmarks/bench_bronze.py
+
+# README chart from the latest backtest (run `make backtest` first); commit docs/img/backtest.svg
+readme-chart:
+	uv run python scripts/readme_chart.py
 
 # Day-ahead prices since 2025-10-01 (first native 15-minute day)
 smard-prices:
