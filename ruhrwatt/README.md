@@ -1,4 +1,6 @@
 # Ruhrwatt
+![ruhrwatt CI](https://github.com/EmilStasevski/industrial-big-data-stack/actions/workflows/ruhrwatt.yml/badge.svg)
+
 
 Small-big-data energy and logistics copilot for NRW industry: PySpark pipelines, Rust kernels
 for the heavy parsing and joins, and a local RAG assistant that fits in 16 GB VRAM.
