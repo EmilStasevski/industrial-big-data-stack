@@ -161,12 +161,24 @@ def _atomic_write(path: Path, content: bytes) -> None:
 # lag, values get revised). A file downloaded before then is not final.
 SETTLE_DAYS = 3
 WEEK_MS = 7 * 86_400_000
+# SMARD sometimes fills a missing day weeks later. Files of the most recent RECHECK_WEEKS
+# that still contain nulls are fetched again on every run (older gaps are left alone).
+RECHECK_WEEKS = 8
 
 
 def is_final(path: Path, week_ts_ms: int, settle_days: int = SETTLE_DAYS) -> bool:
     """True if ``path`` was downloaded at least ``settle_days`` after its week ended."""
     final_from_s = (week_ts_ms + WEEK_MS) / 1000 + settle_days * 86_400
     return path.stat().st_mtime >= final_from_s
+
+
+def has_gaps(path: Path) -> bool:
+    """True if the stored week contains any null value."""
+    try:
+        series = json.loads(path.read_bytes())["series"]
+    except (OSError, ValueError, KeyError):
+        return True  # unreadable: fetch again
+    return any(v is None for _, v in series)
 
 
 def _validate_payload(content: bytes) -> None:
@@ -190,6 +202,8 @@ def download_series(
     Existing files are skipped, except the newest ``refresh_weeks`` weeks and any file that
     was downloaded before its week was final (see ``is_final``): such a file is a partial
     snapshot of a week SMARD was still publishing, and is re-fetched until it is complete.
+    Files of the last ``RECHECK_WEEKS`` weeks that still contain nulls are fetched again too,
+    in case SMARD filled the gap later.
     """
     stats = Stats()
     timestamps = fetch_index(client, filter_id, region, resolution)
@@ -200,12 +214,18 @@ def download_series(
         timestamps = [t for t in timestamps if t >= cutoff]
 
     refresh = set(timestamps[-refresh_weeks:]) if refresh_weeks > 0 else set()
+    recheck = set(timestamps[-RECHECK_WEEKS:])
     out_dir = target_dir(root, filter_id, region, resolution)
     manifest = out_dir / "_manifest.jsonl"
 
     for ts in timestamps:
         path = out_dir / f"{filter_id}_{region}_{resolution}_{ts}.json"
-        if path.exists() and ts not in refresh and is_final(path, ts):
+        if (
+            path.exists()
+            and ts not in refresh
+            and is_final(path, ts)
+            and not (ts in recheck and has_gaps(path))
+        ):
             stats.skipped += 1
             continue
         url = week_url(filter_id, region, resolution, ts)

@@ -57,11 +57,14 @@ Tree models share settings (500 trees, learning rate 0.05, absolute-error loss; 
 uses 0.1 for its symmetric trees) instead of per-model tuning.
 
 **Price range (P10-P90).** LightGBM quantile models (alpha 0.1 / 0.9) are fitted on all
-training days except the last 14; their misses on those 14 days set a conformal margin
-(CQR) that widens (or shrinks) the test range so that about 80 % of prices fall inside.
-Raw quantile models are usually overconfident, and electricity prices shift between
-seasons, so the output reports raw and calibrated coverage side by side.
-`backtest_predictions` holds `p10_raw`, `p90_raw`, `p10`, `p90` and `conformal_margin`.
+training days except the last 14. The range is then conformalized (CQR) and **recalibrated
+every day**: for day D, the misses over the 14 days before D (all known before D's auction)
+set the margin. Misses are measured relative to the raw range width, so volatile
+quarter-hours get proportionally more room. Raw quantile models are overconfident and prices
+shift between seasons (a weekly calibration reached only 69 % in autumn 2026), so the output
+reports raw and calibrated coverage side by side.
+`backtest_predictions` holds `p10_raw`, `p90_raw`, `p10`, `p90` and the daily `conformal_margin`
+(in units of raw range width).
 
 Outputs in `data/gold/`: `backtest_scores`, `backtest_by_hour` (MAE per hour of day),
 `backtest_predictions` (all predictions plus `p10`/`p90`), `feature_importance` (LightGBM

@@ -278,17 +278,39 @@ def test_conformal_margin_hits_the_target_coverage() -> None:
     assert backtest.conformal_margin(lo * 20, hi * 20, y, 0.8) < 0
 
 
-def test_conformal_range_is_calibrated_on_days_before_the_fold(ten_weeks: pl.DataFrame) -> None:
+def test_conformal_range_is_recalibrated_daily(ten_weeks: pl.DataFrame) -> None:
     r = backtest.run(ten_weeks, test_weeks=2, models=("naive_d1",))
     p = r["predictions"]
     assert {"p10_raw", "p90_raw", "p10", "p90", "conformal_margin"} <= set(p.columns)
-    widened = p["p90"] - p["p10"] - (p["p90_raw"] - p["p10_raw"])
-    assert widened.to_numpy() == pytest.approx(2 * p["conformal_margin"].to_numpy())
-    assert (
-        p.group_by("fold").agg(pl.col("conformal_margin").n_unique())["conformal_margin"].max() == 1
+    per_day = p.group_by("date_berlin").agg(pl.col("conformal_margin").n_unique().alias("n"))
+    assert per_day["n"].max() == 1  # one margin per day
+    assert p["conformal_margin"].n_unique() > 1  # ... that changes from day to day
+    scale = (p["p90_raw"] - p["p10_raw"]).clip(lower_bound=backtest.WIDTH_FLOOR)
+    assert (p["p10_raw"] - p["p10"]).to_numpy() == pytest.approx(
+        (p["conformal_margin"] * scale).to_numpy()
     )
-    iv = r["interval"]
-    assert set(iv) == {"coverage_raw", "width_raw", "coverage_p10_p90", "mean_width"}
+    assert set(r["interval"]) == {"coverage_raw", "width_raw", "coverage_p10_p90", "mean_width"}
+
+
+def test_daily_margin_never_uses_the_day_itself_or_later() -> None:
+    rng = np.random.default_rng(1)
+    days = np.repeat(np.arange("2026-01-01", "2026-01-29", dtype="datetime64[D]"), 96)
+    scores = rng.normal(0, 1, len(days))
+    test = days >= np.datetime64("2026-01-15")
+    base = backtest.daily_margins(days, scores, days[test], 0.8, 14)
+    shocked = scores.copy()
+    shocked[days >= np.datetime64("2026-01-20")] += 50  # huge misses from Jan 20 on
+    after = backtest.daily_margins(days, shocked, days[test], 0.8, 14)
+    unaffected = days[test] <= np.datetime64("2026-01-20")
+    assert after[unaffected] == pytest.approx(base[unaffected])
+    assert (after[days[test] == np.datetime64("2026-01-21")] > base.max()).all()
+
+
+def test_scaled_margin_adapts_to_volatility() -> None:
+    # same relative miss: a wide range gets a wider absolute margin than a narrow one
+    lo, hi, y = np.array([0.0, 0.0]), np.array([10.0, 100.0]), np.array([15.0, 150.0])
+    s = backtest.scaled_scores(lo, hi, y)
+    assert s == pytest.approx([0.5, 0.5])
 
 
 def test_unknown_model_is_rejected(ten_weeks: pl.DataFrame) -> None:
@@ -330,3 +352,23 @@ def test_cli_gold_commands(tmp_path: Path, monkeypatch) -> None:
     r = run(app, ["gold", "shift", "--avg-mw", "40", "--min-frac", "0.5", "--max-frac", "1.5"])
     assert r.exit_code == 0 and "custom" in r.output
     assert run(app, ["gold", "shift", "--avg-mw", "40", "--min-frac", "1.2"]).exit_code != 0
+
+
+def test_serving_snapshot(tmp_path: Path) -> None:
+    import json
+
+    from ruhrwatt.gold import serving
+
+    silver(tmp_path, utc(2025, 9, 1), utc(2025, 10, 29), override={PRICE: _noisy_price})
+    mart.build(tmp_path / "silver", tmp_path / "gold")
+    r = serving.export(tmp_path / "silver", tmp_path / "gold", tmp_path / "serving", days=7)
+    out = tmp_path / "serving"
+    fresh = json.loads((out / "freshness.json").read_text())
+    prices = json.loads((out / "prices.json").read_text())["days"]
+    months = json.loads((out / "monthly.json").read_text())["months"]
+    assert len(prices) == 7 == r["price_days"] and fresh["price_days"] == sorted(prices)
+    assert len(prices["2025-10-26"]) == 100  # 25-hour day
+    first = prices["2025-10-27"][0]
+    assert first["utc"] == "2025-10-26T23:00:00Z" and first["local"] == "00:00"
+    assert months[0]["month"] == "2025-09" and 0 < months[0]["de_renewables_share"] < 100
+    assert fresh["last_price_utc"].endswith("Z") and not list(out.glob("*.part"))

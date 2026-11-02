@@ -240,6 +240,11 @@ def build_15min(bronze_root: Path | None = None) -> pl.DataFrame:
 # --------------------------------------------------------------------------- daily
 
 
+def _sum(e: pl.Expr) -> pl.Expr:
+    """Sum that is null (not 0) when a day has no values at all: missing data is not zero."""
+    return pl.when(e.count() > 0).then(e.sum())
+
+
 def build_daily(qh: pl.DataFrame) -> pl.DataFrame:
     """Aggregate the 15-minute table per Berlin calendar day."""
     price = pl.col(PRICE)
@@ -256,21 +261,22 @@ def build_daily(qh: pl.DataFrame) -> pl.DataFrame:
         price.min().alias("price_min"),
         price.max().alias("price_max"),
         (price.max() - price.min()).alias("price_spread"),
-        pl.col("price_is_negative").sum().alias("price_negative_qh"),
+        _sum(pl.col("price_is_negative")).alias("price_negative_qh"),
     ]
     for p in REGION_PREFIX.values():
         load = pl.col(f"{p}_load_mwh")
+        paired = load.filter(price.is_not_null() & load.is_not_null())
         agg += [
-            load.sum().alias(f"{p}_load_mwh"),
-            pl.col(f"{p}_residual_load_mwh").sum().alias(f"{p}_residual_load_mwh"),
-            pl.col(f"{p}_wind_pv_mwh").sum().alias(f"{p}_wind_pv_mwh"),
-            pl.col(f"{p}_renewables_mwh").sum().alias(f"{p}_renewables_mwh"),
-            pl.col(f"{p}_fossil_mwh").sum().alias(f"{p}_fossil_mwh"),
-            pl.col(f"{p}_fc_wind_pv_mwh").sum().alias(f"{p}_fc_wind_pv_mwh"),
+            _sum(load).alias(f"{p}_load_mwh"),
+            _sum(pl.col(f"{p}_residual_load_mwh")).alias(f"{p}_residual_load_mwh"),
+            _sum(pl.col(f"{p}_wind_pv_mwh")).alias(f"{p}_wind_pv_mwh"),
+            _sum(pl.col(f"{p}_renewables_mwh")).alias(f"{p}_renewables_mwh"),
+            _sum(pl.col(f"{p}_fossil_mwh")).alias(f"{p}_fossil_mwh"),
+            _sum(pl.col(f"{p}_fc_wind_pv_mwh")).alias(f"{p}_fc_wind_pv_mwh"),
             # What a consumer with this region's load profile paid on average.
-            (
-                (price * load).sum() / load.filter(price.is_not_null() & load.is_not_null()).sum()
-            ).alias(f"{p}_load_weighted_price"),
+            pl.when(paired.count() > 0)
+            .then((price * load).sum() / paired.sum())
+            .alias(f"{p}_load_weighted_price"),
         ]
     daily = qh.group_by("date_berlin").agg(agg).sort("date_berlin")
 

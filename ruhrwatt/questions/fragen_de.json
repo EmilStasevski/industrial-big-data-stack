@@ -1,0 +1,66 @@
+{
+  "description": "Deutsche Testfragen für den Ruhrwatt-Assistenten. Ausführen: make rag-batch",
+  "questions": [
+    {"id": "basis_monat", "category": "einfach",
+     "question": "Wie hoch war der durchschnittliche Day-Ahead-Strompreis im September 2026?"},
+    {"id": "basis_letzter_monat", "category": "einfach",
+     "question": "Wie viele Stunden mit negativen Strompreisen gab es im letzten Monat?"},
+
+    {"id": "vergleich_sep_okt", "category": "vergleich",
+     "question": "Vergleiche September und Oktober 2026: Wie haben sich Basispreis, Stunden mit negativen Preisen und der Anteil erneuerbarer Energien verändert, und gibt es einen Zusammenhang?"},
+    {"id": "vergleich_max_negativ_2025", "category": "vergleich",
+     "question": "Welcher Monat im Jahr 2025 hatte die meisten Stunden mit negativen Preisen, und wie hoch war in diesem Monat der Anteil erneuerbarer Energien in Deutschland und im Amprion-Gebiet?"},
+    {"id": "vergleich_teuerster_monat", "category": "vergleich",
+     "question": "Was war der teuerste Monat seit Beginn der Daten, und wie groß war dort der Abstand zwischen Peak- und Off-Peak-Preis?"},
+    {"id": "vergleich_oktober_haelften", "category": "vergleich",
+     "question": "Wie unterschieden sich die Strompreise in der ersten und der zweiten Oktoberhälfte 2026?"},
+    {"id": "vergleich_nrw_de", "category": "vergleich",
+     "question": "Wie unterscheidet sich der Anteil erneuerbarer Energien im Amprion-Gebiet (NRW) von dem in ganz Deutschland, und was bedeutet das für die Industrie in NRW?"},
+
+    {"id": "anlage_elektrolyse", "category": "anlage",
+     "question": "Wir betreiben eine Elektrolyse mit 25 MW, die zwischen 70 % und 120 % ihrer Last fahren kann. Wie viel hätte Lastverschiebung in den letzten 3 Monaten insgesamt und pro MWh gespart?"},
+    {"id": "anlage_alu_vs_stahl", "category": "anlage",
+     "question": "Vergleiche das Einsparpotenzial der Beispielanlagen Aluminium und Elektrostahl. Warum ist der Unterschied so groß?"},
+    {"id": "anlage_batch_morgen", "category": "anlage",
+     "question": "Wann sollte morgen ein Batch-Prozess von 4 Stunden am Stück laufen, und wie viel günstiger ist das als der Tagesdurchschnitt?"},
+    {"id": "anlage_teuerste_gestern", "category": "anlage",
+     "question": "Welche 6 Stunden waren gestern am teuersten? Wir wollen in diesen Stunden die Last reduzieren."},
+    {"id": "anlage_10mw_woche", "category": "anlage",
+     "question": "Wie viel mehr hätte ein Verbraucher mit konstant 10 MW in der teuersten Oktoberwoche 2026 bezahlt als in der günstigsten?"},
+
+    {"id": "prognose_guete", "category": "prognose",
+     "question": "Wie gut ist die Preisprognose im Vergleich dazu, einfach die Preise von gestern zu nehmen, und welche Merkmale sind am wichtigsten?"},
+    {"id": "prognose_bandbreite", "category": "prognose",
+     "question": "Wie zuverlässig ist die P10-P90-Preisspanne, und warum wird sie täglich neu kalibriert?"},
+    {"id": "prognose_tso", "category": "prognose",
+     "question": "Warum verbessern die Prognosen der Übertragungsnetzbetreiber das Modell, und besteht das Risiko, Informationen zu früh zu verwenden?"},
+    {"id": "methode_zeitumstellung", "category": "methode",
+     "question": "Wie werden Sommer- und Winterzeit in den Daten behandelt?"},
+    {"id": "methode_amprion", "category": "methode",
+     "question": "Warum verwendet das Projekt Daten des Amprion-Gebiets für NRW?"},
+
+    {"id": "grenze_zukunft", "category": "grenze",
+     "question": "Wie hoch wird der Strompreis nächsten Monat sein?"},
+    {"id": "grenze_gaspreis", "category": "grenze",
+     "question": "Wie hoch war der Gaspreis im September 2026?"},
+    {"id": "grenze_unternehmen", "category": "grenze",
+     "question": "Was zahlt Thyssenkrupp für Strom?"},
+    {"id": "grenze_2023", "category": "grenze",
+     "question": "Um wie viel sind die Strompreise zwischen 2023 und 2026 gestiegen?"},
+    {"id": "grenze_lohnt_sich", "category": "grenze",
+     "question": "Lohnt sich Lastverschiebung für uns? Wir haben 15 MW und können 20 % nach oben und unten flexen."},
+
+    {"id": "folge_zeitumstellung", "category": "folgefragen",
+     "conversation": [
+       "Welche 3 Stunden waren am 25. Oktober 2026 am günstigsten?",
+       "Und welche waren am teuersten?",
+       "Warum hatte dieser Tag 25 Stunden?"
+     ]},
+    {"id": "folge_anlage", "category": "folgefragen",
+     "conversation": [
+       "Wie viel spart die Beispielanlage Chlor-Alkali-Elektrolyse pro Jahr durch Lastverschiebung?",
+       "Und wenn sie nur zwischen 90 % und 110 % flexen könnte, bei gleicher Größe?",
+       "Welche Kosten sind in diesen Zahlen nicht enthalten?"
+     ]}
+  ]
+}

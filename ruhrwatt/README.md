@@ -20,37 +20,54 @@ make bronze                  # parse them with the Rust core into data/bronze (P
 make silver                  # join into data/silver tables + quality gates (Polars)
 make gold                    # forecasting features, load-shifting savings, monthly mart
 make backtest                # walk-forward model comparison (ridge, HGB, LightGBM, XGBoost, CatBoost)
-make pipeline                # download new weeks, bronze, silver, gold
+make pipeline                # download new weeks, bronze, silver, gold, serving snapshot
 make lab                     # JupyterLab; start with notebooks/01_explore_silver.ipynb
+make spark                   # silver + gold features with PySpark (Java 17/21) -> data/spark
+make spark-parity            # proves Spark and Polars produce identical tables
+make bench-spark             # Polars vs Spark on 2 / 10 / 25 years of synthetic data
+make rag-setup && make rag-index   # local assistant: pull models (Ollama), embed the docs
+make ask Q="What were the cheapest hours yesterday?"   # or: make chat / make rag-eval
+make api                     # Go read-only API + metrics on :8080 (data/serving)
+make up                      # same in Docker; see docs/devops.md for compose profiles
+make timer-install           # pipeline at 14:15 and 19:30 Berlin (systemd user timer)
 make bench                   # Rust vs pure-Python benchmark
 ```
 
-Optional stacks install on demand: `uv sync --extra spark`, `uv sync --extra rag`.
+PySpark is included (it needs Java 17 or 21 at run time). The assistant needs
+[Ollama](https://ollama.com) with a 16 GB GPU or less (see `docs/rag.md`).
 
 ## Layout
 
 ```
 src/ruhrwatt/
-  download/smard.py   raw SMARD downloader (resumable, atomic writes, manifest)
+  cli.py              `ruhrwatt smard|silver|gold|spark|rag ...`
+  download/smard.py   raw SMARD downloader (resumable, atomic writes, self-healing re-fetch)
   bronze/smard.py     raw -> bronze Parquet via the Rust core
   bronze/reference.py pure-Python oracle for the tests and the benchmark baseline
   silver/energy.py    bronze -> energy_15min + energy_daily (Polars, lazy)
   silver/gates.py     quality gates (price range, Amprion <= DE, PV dark at night, ...)
   gold/features.py    day-ahead forecasting features (no look-ahead, DST-safe lags)
-  gold/backtest.py    walk-forward comparison of 8 models + P10/P90 ranges
+  gold/backtest.py    walk-forward comparison of 8 models + calibrated P10/P90 ranges
   gold/shift.py       optimal within-day load shifting for NRW plant profiles
   gold/mart.py        gold tables incl. the monthly market mart
-  cli.py              `ruhrwatt smard ...`
+  gold/serving.py     JSON snapshots for the Go API
+  spark/              PySpark silver + gold features, parity check vs Polars
+  rag/                local assistant: Ollama client, data tools, docs index, agent, eval, batch
 crates/ruhrwatt-core/ Rust (PyO3): parallel parse, dedupe, quality counters, Parquet writer
-benchmarks/           Rust vs Python benchmark
-notebooks/             01_explore_silver (market), 02_gold_forecast_and_shifting
-conf/                 dataset and pipeline configuration
+api/                  Go: read-only HTTP API over the serving snapshots, Prometheus metrics
+benchmarks/           Rust vs Python parser, Polars vs Spark pipeline
+notebooks/            01_explore_silver (market), 02_gold_forecast_and_shifting
+questions/            question sets for `ruhrwatt rag batch` (fragen_de.json)
+deploy/               systemd timer, Prometheus scrape config and alerts
+scripts/pipeline.sh   the daily refresh (container and timer)
+.github/              CI (Rust, Python, Spark, Go, Docker), Dependabot
 data/raw/             untouched downloads, one folder per source
 data/bronze/          parsed, typed Parquet (UTC timestamps), Hive-partitioned
 data/silver/          cleaned and joined tables
-data/gold/            features and marts for the assistant
-docs/                 bronze_schema.md, silver_schema.md, gold_schema.md
-tests/                pytest, offline
+data/gold/            features, backtest results and marts
+data/serving/         JSON snapshots served by the Go API
+docs/                 bronze/silver/gold schema, spark.md, rag.md, devops.md
+tests/                pytest, offline (Go tests live in api/)
 ```
 
 Data is never committed (see `.gitignore`); only the empty folder skeleton is.

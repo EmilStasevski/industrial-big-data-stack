@@ -1,0 +1,12 @@
+.git
+.venv
+target
+data
+**/__pycache__
+**/*.pyc
+.pytest_cache
+.ruff_cache
+.ipynb_checkpoints
+src/ruhrwatt/*.so
+api/ruhrwatt-api
+*.zip

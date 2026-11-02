@@ -1,0 +1,29 @@
+groups:
+  - name: ruhrwatt
+    rules:
+      - alert: RuhrwattApiDown
+        expr: up{job="ruhrwatt-api"} == 0
+        for: 5m
+        annotations:
+          summary: "ruhrwatt-api is not answering"
+
+      - alert: RuhrwattNoSnapshot
+        expr: ruhrwatt_snapshot_loaded == 0
+        for: 15m
+        annotations:
+          summary: "API runs but has no data: run the pipeline"
+
+      # Load and generation arrive with a lag of hours; 2 days means the pipeline stopped.
+      - alert: RuhrwattDataStale
+        expr: ruhrwatt_data_age_seconds > 2 * 86400
+        for: 1h
+        annotations:
+          summary: "Last complete quarter-hour is {{ $value | humanizeDuration }} old"
+
+      # SMARD shows tomorrow's day-ahead prices by the evening; after the 19:30 Berlin run
+      # (20:00 UTC check) the last known price must lie hours ahead (it is tomorrow 23:45).
+      - alert: RuhrwattTomorrowPricesMissing
+        expr: ruhrwatt_price_horizon_seconds < 6 * 3600 and on() hour() >= 20
+        for: 30m
+        annotations:
+          summary: "Tomorrow's day-ahead prices are not in the snapshot yet"

@@ -1,0 +1,16 @@
+# Daily Ruhrwatt refresh (user service). Install: see docs/devops.md.
+[Unit]
+Description=Ruhrwatt pipeline: SMARD -> bronze -> silver -> gold -> serving
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/industrial-big-data-stack/ruhrwatt
+# uv and cargo live in the user's home; systemd does not read ~/.bashrc
+Environment=PATH=%h/.local/bin:%h/.cargo/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/usr/bin/make pipeline
+# Docker instead of the local environment:
+# ExecStart=/usr/bin/docker compose run --rm pipeline
+TimeoutStartSec=45min
+Nice=10

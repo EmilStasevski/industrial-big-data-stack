@@ -280,6 +280,25 @@ def gold_build() -> None:
         )
 
 
+@gold_app.command("export-serving")
+def gold_export_serving(
+    days: Annotated[int, typer.Option(help="Days of 15-minute prices to include.")] = 31,
+) -> None:
+    """Write the JSON snapshots the Go API serves (data/serving/)."""
+    from ruhrwatt.gold import serving
+
+    try:
+        r = serving.export(days=days)
+    except (FileNotFoundError, OSError) as exc:
+        typer.echo(f"FAILED: {exc}; run `make gold` first", err=True)
+        raise typer.Exit(1) from exc
+    f = r["freshness"]
+    typer.echo(
+        f"serving snapshot -> {r['dir']}: {r['months']} months, {r['price_days']} price days "
+        f"(prices up to {f['last_price_utc']})"
+    )
+
+
 @gold_app.command("backtest")
 def gold_backtest(
     test_weeks: Annotated[int, typer.Option(help="Most recent weeks to test on.")] = 8,
@@ -371,6 +390,263 @@ def gold_shift(
         raise typer.BadParameter(str(exc)) from exc
     qh, daily = mart.read_silver()
     _shift_table(shift.summary(shift.run(qh, daily, [plant])))
+
+
+spark_app = typer.Typer(
+    help="PySpark versions of the heavy stages (needs Java 17 or 21).", no_args_is_help=True
+)
+app.add_typer(spark_app, name="spark")
+
+
+@spark_app.command("build")
+def spark_build() -> None:
+    """Silver tables and gold features with Spark -> data/spark/, then the silver gates."""
+    from ruhrwatt.silver import gates
+    from ruhrwatt.spark import pipeline
+    from ruhrwatt.spark.session import JavaMissingError
+
+    try:
+        out = pipeline.build()
+    except (FileNotFoundError, JavaMissingError) as exc:
+        typer.echo(f"FAILED: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(
+        f"spark: {out['rows']} quarter-hours; session start {out['startup_s']:.1f} s, "
+        f"pipeline {out['run_s']:.1f} s"
+    )
+    for name, path in out["paths"].items():
+        typer.echo(f"  {name:9} -> {path}")
+    typer.echo("quality gates (on the Spark output):")
+    # Spark does not keep row order through joins; the gates expect time order.
+    if not _report_gates(gates.check(pipeline.to_polars(out["qh"]).sort("ts_utc"))):
+        raise typer.Exit(1)
+
+
+@spark_app.command("parity")
+def spark_parity() -> None:
+    """Build every table with Spark and with Polars from the same bronze and compare."""
+    from ruhrwatt.spark import pipeline
+    from ruhrwatt.spark.session import JavaMissingError
+
+    try:
+        results = pipeline.parity()
+    except (FileNotFoundError, JavaMissingError) as exc:
+        typer.echo(f"FAILED: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    ok = True
+    for table, diffs in results.items():
+        if not diffs:
+            typer.echo(f"  [ok  ] {table}: identical (floats within 1e-9)")
+            continue
+        ok = False
+        typer.echo(f"  [FAIL] {table}:")
+        for d in diffs[:10]:
+            typer.echo(f"         {d.column}: {d.problem}")
+    if not ok:
+        raise typer.Exit(1)
+
+
+rag_app = typer.Typer(help="Local RAG assistant (Ollama).", no_args_is_help=True)
+app.add_typer(rag_app, name="rag")
+
+
+def _rag_fail(exc: Exception) -> None:
+    typer.echo(f"FAILED: {exc}", err=True)
+    raise typer.Exit(1) from exc
+
+
+def _print_answer(ans, verbose: bool) -> None:
+    typer.echo(ans.text)
+    if ans.sources:
+        typer.echo("\nSources:")
+        for src in ans.sources:
+            typer.echo(f"  - {src}")
+    if verbose:
+        typer.echo(f"\n[{len(ans.tool_calls)} tool calls, {ans.steps} steps, {ans.seconds:.1f} s]")
+        for c in ans.tool_calls:
+            typer.echo(f"  {c['name']}({c['arguments']})")
+
+
+@rag_app.command("doctor")
+def rag_doctor() -> None:
+    """Check Ollama, models, data and index; show VRAM use of loaded models."""
+    from ruhrwatt.rag.app import doctor
+
+    ok = True
+    for name, good, detail in doctor():
+        ok = ok and good
+        typer.echo(f"  [{'ok  ' if good else 'FAIL'}] {name}: {detail}")
+    if not ok:
+        raise typer.Exit(1)
+
+
+@rag_app.command("index")
+def rag_index() -> None:
+    """Build or refresh the docs index (only changed chunks are embedded again)."""
+    from ruhrwatt.rag import docs
+    from ruhrwatt.rag.llm import OllamaClient, OllamaError
+
+    try:
+        r = docs.build_index(OllamaClient().embed)
+    except OllamaError as exc:
+        _rag_fail(exc)
+    typer.echo(
+        f"docs index: {r['chunks']} chunks ({r['embedded']} embedded, {r['reused']} reused) "
+        f"-> {r['path']}"
+    )
+
+
+@rag_app.command("ask")
+def rag_ask(
+    question: Annotated[str, typer.Argument(help="Your question, in English or German.")],
+    model: Annotated[str | None, typer.Option(help="Ollama model, e.g. qwen3:14b.")] = None,
+    verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Show tool calls.")] = False,
+) -> None:
+    """Ask one question."""
+    from dataclasses import replace
+
+    from ruhrwatt.rag.app import make_agent
+    from ruhrwatt.rag.config import Settings
+    from ruhrwatt.rag.llm import OllamaError
+
+    s = Settings() if model is None else replace(Settings(), model=model)
+    try:
+        _print_answer(make_agent(s).ask(question), verbose)
+    except OllamaError as exc:
+        _rag_fail(exc)
+
+
+@rag_app.command("chat")
+def rag_chat(
+    model: Annotated[str | None, typer.Option(help="Ollama model, e.g. qwen3:14b.")] = None,
+    verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Show tool calls.")] = False,
+) -> None:
+    """Interactive chat (keeps context). Empty line or Ctrl-D to quit, /reset to clear."""
+    from dataclasses import replace
+
+    from ruhrwatt.rag.app import make_agent
+    from ruhrwatt.rag.config import Settings
+    from ruhrwatt.rag.llm import OllamaError
+
+    s = Settings() if model is None else replace(Settings(), model=model)
+    agent = make_agent(s)
+    typer.echo(f"Ruhrwatt assistant ({s.model}). Ask about prices, NRW, load shifting, forecasts.")
+    while True:
+        try:
+            q = input("\n> ").strip()
+        except (EOFError, KeyboardInterrupt):
+            break
+        if not q:
+            break
+        if q == "/reset":
+            agent.reset()
+            typer.echo("(context cleared)")
+            continue
+        try:
+            _print_answer(agent.ask(q), verbose)
+        except OllamaError as exc:
+            typer.echo(f"FAILED: {exc}", err=True)
+
+
+@rag_app.command("eval")
+def rag_eval(
+    model: Annotated[
+        list[str] | None, typer.Option(help="Model(s) to compare; repeat the option.")
+    ] = None,
+) -> None:
+    """Run the evaluation set (truth computed from the data) for one or more models."""
+    from dataclasses import replace
+
+    import polars as pl
+
+    from ruhrwatt import config as cfg
+    from ruhrwatt.rag import evaluate
+    from ruhrwatt.rag.app import make_agent
+    from ruhrwatt.rag.config import Settings
+    from ruhrwatt.rag.llm import OllamaError
+
+    models = model or [Settings().model]
+    try:
+        cases = evaluate.build_cases()
+    except Exception as exc:  # missing data / tables
+        _rag_fail(exc)
+    frames = []
+    for m in models:
+        s = replace(Settings(), model=m)
+        typer.echo(f"\n{m}: {len(cases)} questions")
+        try:
+            results = evaluate.run(
+                lambda s=s: make_agent(s),
+                cases,
+                progress=lambda r: typer.echo(
+                    f"  [{'pass' if r.passed else 'FAIL'}] {r.id:26} {r.seconds:5.1f} s  "
+                    f"tools={','.join(r.tools_used) or '-'}"
+                    + ("" if r.passed else f"\n         {r.detail}")
+                ),
+            )
+        except OllamaError as exc:
+            _rag_fail(exc)
+        n_ok = sum(r.passed for r in results)
+        avg = sum(r.seconds for r in results) / len(results)
+        typer.echo(f"  => {n_ok}/{len(results)} passed, {avg:.1f} s per question")
+        frames.append(evaluate.to_frame(results, m))
+    out = cfg.data_dir() / "rag" / "eval_results.parquet"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    pl.concat(frames).write_parquet(out)
+    typer.echo(f"\nanswers and checks -> {out}")
+
+
+@rag_app.command("batch")
+def rag_batch(
+    file: Annotated[
+        str, typer.Argument(help="JSON file with questions.")
+    ] = "questions/fragen_de.json",
+    model: Annotated[str | None, typer.Option(help="Ollama model, e.g. qwen3:14b.")] = None,
+) -> None:
+    """Run all questions of a JSON file; writes a Markdown report and the raw JSON."""
+    import json
+    import re
+    from dataclasses import replace
+    from pathlib import Path
+
+    from ruhrwatt import config as cfg
+    from ruhrwatt.rag import batch
+    from ruhrwatt.rag.app import make_agent
+    from ruhrwatt.rag.config import Settings
+    from ruhrwatt.rag.llm import OllamaError
+
+    s = Settings() if model is None else replace(Settings(), model=model)
+    try:
+        items = batch.load_questions(Path(file))
+    except (OSError, ValueError, KeyError) as exc:
+        _rag_fail(exc)
+    n = sum(len(it.get("conversation") or [1]) for it in items)
+    typer.echo(f"{s.model}: {n} questions from {file}")
+    try:
+        results = batch.run(
+            lambda: make_agent(s),
+            items,
+            progress=lambda r: typer.echo(
+                f"  {r['id']:28} {r.get('seconds', 0):5.1f} s  "
+                + (
+                    f"ERROR {r['error']}"
+                    if r.get("error")
+                    else f"tools={','.join(t['name'] for t in r['tools']) or '-'}"
+                )
+            ),
+            fatal=(OllamaError,),
+        )
+    except OllamaError as exc:
+        _rag_fail(exc)
+    out = cfg.data_dir() / "rag"
+    out.mkdir(parents=True, exist_ok=True)
+    stem = f"batch_{re.sub(r'[^A-Za-z0-9]+', '_', s.model)}"
+    (out / f"{stem}.json").write_text(
+        json.dumps({"model": s.model, "results": results}, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    (out / f"{stem}.md").write_text(batch.to_markdown(results, s.model), encoding="utf-8")
+    typer.echo(f"\nreport -> {out / (stem + '.md')}  (raw: {stem}.json)")
 
 
 if __name__ == "__main__":

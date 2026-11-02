@@ -1,0 +1,80 @@
+# Ruhrwatt services. The API runs by default; the rest are opt-in profiles:
+#
+#   docker compose up -d                                  # Go API on :8080 (reads data/serving)
+#   docker compose run --rm pipeline                      # daily refresh -> data/
+#   docker compose --profile monitoring up -d             # + Prometheus on :9090 with alerts
+#   docker compose --profile assistant run --rm assistant # chat with Ollama in a container (GPU)
+#   docker compose run --rm spark                         # PySpark build -> data/spark
+#
+# Already running Ollama on the host? Use it instead of the container:
+#   OLLAMA_HOST=http://host.docker.internal:11434 docker compose run --rm assistant
+name: ruhrwatt
+
+services:
+  api:
+    build: ./api
+    image: ruhrwatt-api:latest
+    ports: ["${RUHRWATT_API_PORT:-8080}:8080"]  # RUHRWATT_API_PORT=8090 if 8080 is taken
+    volumes: ["./data:/data:ro"]
+    environment:
+      RUHRWATT_API_KEY: ${RUHRWATT_API_KEY:-}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "/ruhrwatt-api", "healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  pipeline:
+    build: {context: ., target: runtime}
+    image: ruhrwatt:latest
+    profiles: ["batch"]
+    entrypoint: ["/app/scripts/pipeline.sh"]
+    volumes: ["./data:/data"]
+    environment:
+      RUHRWATT_SINCE: ${RUHRWATT_SINCE:-2025-01-01}
+      RUHRWATT_BACKTEST: ${RUHRWATT_BACKTEST:-0}
+
+  spark:
+    build: {context: ., target: spark}
+    image: ruhrwatt:spark
+    profiles: ["spark"]
+    command: ["spark", "build"]
+    volumes: ["./data:/data"]
+
+  ollama:
+    image: ollama/ollama:0.13.5
+    profiles: ["assistant"]
+    volumes: ["ollama:/root/.ollama"]
+    ports: ["11434:11434"]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  assistant:
+    build: {context: ., target: runtime}
+    image: ruhrwatt:latest
+    profiles: ["assistant"]
+    entrypoint: ["ruhrwatt", "rag"]
+    command: ["chat"]
+    stdin_open: true
+    tty: true
+    volumes: ["./data:/data"]
+    environment:
+      OLLAMA_HOST: ${OLLAMA_HOST:-http://ollama:11434}
+      RUHRWATT_LLM_MODEL: ${RUHRWATT_LLM_MODEL:-qwen3:8b}
+    extra_hosts: ["host.docker.internal:host-gateway"]
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    profiles: ["monitoring"]
+    ports: ["9090:9090"]
+    volumes: ["./deploy/prometheus:/etc/prometheus:ro"]
+    depends_on: [api]
+
+volumes:
+  ollama:

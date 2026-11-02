@@ -7,7 +7,10 @@ __pycache__/
 dist/
 *.egg-info/
 
-# Rust (later)
+# Jupyter
+.ipynb_checkpoints/
+
+# Rust
 target/
 
 # Data: keep the folder skeleton, never commit the data itself
@@ -24,3 +27,6 @@ data/**
 .idea/
 .vscode/
 .DS_Store
+
+# Go
+api/ruhrwatt-api

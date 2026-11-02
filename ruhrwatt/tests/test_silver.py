@@ -277,3 +277,32 @@ def test_wrong_forecast_id_is_caught(tmp_path: Path) -> None:
     )
     names = {g.name for g in gates.failed(gates.check(energy.build_15min(root)))}
     assert names == {"amp_fc_wind_onshore_tracks_actual"}
+
+
+def test_daily_sums_are_null_not_zero_without_data(tmp_path: Path) -> None:
+    # prices published a day further than everything else: the last day has no load data
+    root = write_bronze(tmp_path / "b", START, END, padded_until=PAD)
+    p = write_bronze(tmp_path / "p", START, END + timedelta(days=1), padded_until=PAD)
+    src = bronze_path("day_ahead_price", "DE-LU", "quarterhour", p)
+    bronze_path("day_ahead_price", "DE-LU", "quarterhour", root).write_bytes(src.read_bytes())
+    daily = energy.build_daily(energy.build_15min(root))
+    last = daily.filter(pl.col("date_berlin") == date(2025, 10, 28)).row(0, named=True)
+    assert last["price_base"] is not None
+    assert last["de_load_mwh"] is None and last["de_load_weighted_price"] is None
+    assert last["de_wind_pv_share"] is None
+
+
+def test_missing_java_gives_install_hint(monkeypatch) -> None:
+    import shutil
+
+    from typer.testing import CliRunner
+
+    from ruhrwatt.cli import app
+    from ruhrwatt.spark import session
+
+    monkeypatch.delenv("JAVA_HOME", raising=False)
+    monkeypatch.setattr(shutil, "which", lambda name: None)
+    with pytest.raises(session.JavaMissingError, match="openjdk-21"):
+        session.check_java()
+    r = CliRunner().invoke(app, ["spark", "parity"])
+    assert r.exit_code == 1 and "openjdk-21" in r.output

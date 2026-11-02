@@ -15,11 +15,6 @@ dependencies = [
     "xgboost>=2.1",
 ]
 
-[project.optional-dependencies]
-# Heavy stacks stay optional so the base environment installs in seconds.
-spark = ["pyspark>=4.0", "pyarrow>=17"]
-rag = ["lancedb>=0.15", "sentence-transformers>=3.0"]
-
 [project.scripts]
 ruhrwatt = "ruhrwatt.cli:app"
 
@@ -27,8 +22,18 @@ ruhrwatt = "ruhrwatt.cli:app"
 dev = [
     "pytest>=8",
     "ruff>=0.6",
+    "pre-commit>=4",
     "pyarrow>=17",  # tests and the benchmark read Parquet back
     "tzdata>=2024.1; sys_platform == 'win32'",  # zoneinfo data for the DST tests on Windows
+]
+# Spark needs Java 17 or 21 (`java -version`).
+spark = [
+    "pyspark>=4.0",
+    "pyarrow>=17",
+]
+# Local RAG assistant: the LLM and embeddings run in Ollama, the vector store is LanceDB.
+rag = [
+    "lancedb>=0.15",
 ]
 notebook = [
     "jupyterlab>=4.2",
@@ -51,7 +56,7 @@ profile = "release"
 
 [tool.uv]
 # Plain `uv sync` installs these groups too (otherwise it would remove Jupyter again).
-default-groups = ["dev", "notebook"]
+default-groups = ["dev", "notebook", "spark", "rag"]
 # Rebuild the extension when Rust sources change.
 cache-keys = [
     { file = "pyproject.toml" },
@@ -63,6 +68,7 @@ cache-keys = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+markers = ["spark: needs Java and starts a local Spark session (deselect with -m 'not spark')"]
 
 [tool.ruff]
 line-length = 100

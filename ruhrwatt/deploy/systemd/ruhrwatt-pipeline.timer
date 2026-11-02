@@ -1,0 +1,14 @@
+# The day-ahead auction closes at 12:00, but SMARD shows the results only later in the
+# afternoon or evening. Run twice: early for the actuals, evening for tomorrow's prices.
+[Unit]
+Description=Daily Ruhrwatt refresh after the day-ahead auction
+
+[Timer]
+OnCalendar=*-*-* 14:15:00 Europe/Berlin
+OnCalendar=*-*-* 19:30:00 Europe/Berlin
+RandomizedDelaySec=10min
+# Catch up after the machine was off at a scheduled time
+Persistent=true
+
+[Install]
+WantedBy=timers.target

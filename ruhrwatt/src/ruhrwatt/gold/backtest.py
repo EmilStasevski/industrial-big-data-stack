@@ -18,9 +18,16 @@ effort.
 
 Price ranges: LightGBM quantile models (alpha 0.1 / 0.9) give a raw P10-P90 range. Raw
 quantile models are often overconfident, so the range is conformalized (CQR, Romano et al.
-2019): the quantile models are fitted on all training days except the last
-``CALIBRATION_DAYS``, their misses on those days measure how much wider the range must be,
-and the test range is widened by that amount. Both raw and calibrated coverage are reported.
+2019) and recalibrated every day:
+
+* the quantile models are fitted on the training days except the last ``CALIBRATION_DAYS``;
+* for each test day D, the misses over the ``CALIBRATION_DAYS`` before D (calibration days
+  plus earlier test days, whose prices are all known before D's auction) set a margin;
+* misses are measured relative to the raw range width, so the margin widens a range in
+  proportion: volatile quarter-hours (wide raw range) get more room than calm ones.
+
+Recalibrating daily lets the range follow regime changes such as rising autumn volatility.
+Both raw and calibrated coverage are reported.
 """
 
 from __future__ import annotations
@@ -37,7 +44,33 @@ from ruhrwatt.gold.features import TARGET, feature_columns
 N_TREES = 500
 LEARNING_RATE = 0.05
 QUANTILES = (0.1, 0.9)
-CALIBRATION_DAYS = 14  # most recent training days used to calibrate the price range
+CALIBRATION_DAYS = 14  # trailing days whose misses calibrate each day's price range
+WIDTH_FLOOR = 5.0  # EUR/MWh: smallest raw width used to scale misses (avoids division by ~0)
+
+
+def scaled_scores(lo: np.ndarray, hi: np.ndarray, y: np.ndarray) -> np.ndarray:
+    """Misses relative to the raw range width (negative inside the range)."""
+    return np.maximum(lo - y, y - hi) / np.maximum(hi - lo, WIDTH_FLOOR)
+
+
+def daily_margins(
+    days: np.ndarray, scores: np.ndarray, test_days: np.ndarray, level: float, window: int
+) -> np.ndarray:
+    """Margin for every test row: from scores of rows dated in [D - window, D - 1] only.
+
+    ``days``/``scores`` cover the calibration rows and the test rows (whose scores become
+    known day by day); a test day never sees its own or later scores.
+    """
+    out = np.zeros(len(test_days))
+    for d in np.unique(test_days):
+        past = (days < d) & (days >= d - np.timedelta64(window, "D"))
+        if past.sum() < 10:
+            continue  # too little history: keep the raw range
+        idx = test_days == d
+        n = int(past.sum())
+        q = min(1.0, np.ceil((n + 1) * level) / n)
+        out[idx] = np.quantile(scores[past], q, method="higher")
+    return out
 
 
 def conformal_margin(lo: np.ndarray, hi: np.ndarray, y: np.ndarray, level: float) -> float:
@@ -247,17 +280,24 @@ def run(
                 bands[q] = (m.predict(_matrix(cal, cols)), m.predict(_matrix(test, cols)))
             (lo_cal, lo_test), (hi_cal, hi_test) = bands[QUANTILES[0]], bands[QUANTILES[1]]
             level = QUANTILES[1] - QUANTILES[0]
-            margin = (
-                conformal_margin(lo_cal, hi_cal, cal[TARGET].to_numpy(), level)
-                if cal.height
-                else 0.0
+            y_test = test[TARGET].to_numpy()
+            days = np.concatenate([cal["date_berlin"].to_numpy(), test["date_berlin"].to_numpy()])
+            scores = np.concatenate(
+                [
+                    scaled_scores(lo_cal, hi_cal, cal[TARGET].to_numpy()),
+                    scaled_scores(lo_test, hi_test, y_test),
+                ]
             )
+            margin = daily_margins(
+                days, scores, test["date_berlin"].to_numpy(), level, CALIBRATION_DAYS
+            )
+            scale = np.maximum(hi_test - lo_test, WIDTH_FLOOR)
             part = part.with_columns(
                 pl.Series("p10_raw", lo_test),
                 pl.Series("p90_raw", hi_test),
-                pl.Series("p10", lo_test - margin),
-                pl.Series("p90", hi_test + margin),
-                pl.lit(margin).alias("conformal_margin"),
+                pl.Series("p10", lo_test - margin * scale),
+                pl.Series("p90", hi_test + margin * scale),
+                pl.Series("conformal_margin", margin),
             )
         parts.append(part)
 

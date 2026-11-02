@@ -1,0 +1,105 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  python-rust:
+    name: Python + Rust
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: Rust format and lint
+        run: |
+          cargo fmt --all --check
+          cargo clippy -p ruhrwatt-core -- -D warnings
+      - name: Install (builds the Rust extension with maturin)
+        run: uv sync --frozen
+      - name: Rust unit tests
+        run: cargo test -p ruhrwatt-core
+        env:
+          PYO3_PYTHON: ${{ github.workspace }}/.venv/bin/python
+      - name: Python lint
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+      - name: Python tests (without Spark)
+        run: uv run pytest -m "not spark"
+
+  spark:
+    name: Spark parity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - name: Spark tests (Spark and Polars must agree)
+        run: uv run pytest -m spark
+
+  go:
+    name: Go API
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: api/go.mod
+      - name: gofmt
+        run: test -z "$(gofmt -l .)" || (gofmt -l . && exit 1)
+      - run: go vet ./...
+      - run: go test -race ./...
+      - run: CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o ruhrwatt-api .
+
+  docker:
+    name: Docker images
+    needs: [python-rust, go]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Pipeline image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: runtime
+          tags: ruhrwatt:ci
+          push: false
+          cache-from: type=gha,scope=pipeline
+          cache-to: type=gha,mode=max,scope=pipeline
+      - name: API image
+        uses: docker/build-push-action@v6
+        with:
+          context: api
+          tags: ruhrwatt-api:ci
+          push: false
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+      - name: Compose file is valid
+        run: docker compose --profile batch --profile assistant --profile monitoring --profile spark config --quiet

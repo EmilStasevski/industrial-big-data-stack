@@ -17,8 +17,9 @@ W3 = 1760306400000  # 2025-10-13
 W4 = 1760911200000  # 2025-10-20
 
 
-def _payload(ts: int) -> dict:
-    return {"meta_data": {}, "series": [[ts, 41.5], [ts + 900_000, None], [ts + 1_800_000, -3.2]]}
+def _payload(ts: int, gap: bool = False) -> dict:
+    middle = None if gap else 7.0
+    return {"meta_data": {}, "series": [[ts, 41.5], [ts + 900_000, middle], [ts + 1_800_000, -3.2]]}
 
 
 class FakeSmard:
@@ -26,6 +27,7 @@ class FakeSmard:
         self.timestamps = timestamps
         self.calls: list[str] = []
         self.fail_week: int | None = None
+        self.gaps = False  # True: every week contains a null
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
         url = str(request.url)
@@ -36,7 +38,7 @@ class FakeSmard:
             if url.endswith(f"_{ts}.json"):
                 if ts == self.fail_week:
                     return httpx.Response(404)
-                return httpx.Response(200, content=json.dumps(_payload(ts)).encode())
+                return httpx.Response(200, content=json.dumps(_payload(ts, self.gaps)).encode())
         return httpx.Response(404)
 
 
@@ -139,3 +141,32 @@ def test_partial_week_snapshot_is_refetched_until_final(tmp_path) -> None:
     assert (stats.fetched, stats.skipped) == (2, 2)
     assert any(c.endswith(f"_{W1}.json") for c in fake.calls)
     assert smard.is_final(stale, W1)  # fresh download now counts as final
+
+
+def test_recent_week_with_gaps_is_rechecked(tmp_path) -> None:
+    fake = FakeSmard([W1, W2, W3, W4])
+    fake.gaps = True  # every payload contains one null
+    with _client(fake) as client:
+        smard.download_series(client, tmp_path, 4169, "DE-LU", delay=0)
+        out = tmp_path / "4169" / "DE-LU" / "quarterhour"
+        # make W1 and W2 gap-free: they must then be skipped
+        for ts in (W1, W2):
+            p = out / f"4169_DE-LU_quarterhour_{ts}.json"
+            p.write_text(json.dumps({"meta_data": {}, "series": [[ts, 1.0], [ts + 900_000, 2.0]]}))
+        fake.calls.clear()
+        stats = smard.download_series(client, tmp_path, 4169, "DE-LU", refresh_weeks=1, delay=0)
+    # W3 has a gap (re-checked), W4 is the newest (refreshed); W1, W2 complete and skipped
+    assert (stats.fetched, stats.skipped) == (2, 2)
+    assert smard.has_gaps(out / f"4169_DE-LU_quarterhour_{W3}.json")
+    assert not smard.has_gaps(out / f"4169_DE-LU_quarterhour_{W1}.json")
+
+
+def test_old_gaps_are_left_alone(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(smard, "RECHECK_WEEKS", 1)
+    fake = FakeSmard([W1, W2, W3, W4])
+    fake.gaps = True
+    with _client(fake) as client:
+        smard.download_series(client, tmp_path, 4169, "DE-LU", delay=0)
+        stats = smard.download_series(client, tmp_path, 4169, "DE-LU", refresh_weeks=0, delay=0)
+    # only W4 is recent enough to be re-checked
+    assert (stats.fetched, stats.skipped) == (1, 3)
