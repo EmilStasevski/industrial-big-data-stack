@@ -1,1 +1,784 @@
 *.zip
+# =============================================================================
+# Universal .gitignore
+# Covers: OS, editors/IDEs, Python, Rust, Go, Node/JS, Java, C/C++, ML/data
+# science artifacts, Docker, Terraform, secrets, logs, and more.
+# =============================================================================
+
+
+# -----------------------------------------------------------------------------
+# Operating systems
+# -----------------------------------------------------------------------------
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+*.stackdump
+*.lnk
+[Dd]esktop.ini
+
+# Linux
+*~
+.directory
+.Trash-*
+.nfs*
+.fuse_hidden*
+
+
+# -----------------------------------------------------------------------------
+# Editors & IDEs
+# -----------------------------------------------------------------------------
+# JetBrains (IntelliJ, PyCharm, GoLand, CLion, RustRover, WebStorm...)
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+cmake-build-*/
+
+# VS Code (uncomment the negations if you want to share some settings)
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/*.code-snippets
+*.code-workspace
+.history/
+*.vsix
+
+# Vim / Neovim
+[._]*.s[a-v][a-z]
+[._]*.sw[a-p]
+[._]s[a-rt-v][a-z]
+[._]ss[a-gi-z]
+[._]sw[a-p]
+Session.vim
+Sessionx.vim
+.netrwhist
+tags
+[._]*.un~
+
+# Emacs
+\#*\#
+.\#*
+*.elc
+auto-save-list
+.projectile
+.dir-locals.el
+
+# Sublime Text
+*.sublime-workspace
+*.sublime-project
+
+# Eclipse
+.metadata/
+.classpath
+.project
+.settings/
+bin/
+tmp/
+*.tmp
+*.bak
+*.swp
+
+# Xcode
+xcuserdata/
+*.xcworkspace
+DerivedData/
+
+# Others
+.cursor/
+.aider*
+.fleet/
+
+
+# -----------------------------------------------------------------------------
+# Python
+# -----------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+pip-wheel-metadata/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.python-version
+.conda/
+conda-meta/
+
+# Dependency managers
+.pdm.toml
+.pdm-python
+.pdm-build/
+__pypackages__/
+.pixi/
+.tox/
+.nox/
+poetry.toml
+# Uncomment if you don't want to commit lock files for libraries:
+# poetry.lock
+# uv.lock
+# Pipfile.lock
+
+# Testing / coverage
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.cache
+nosetests.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Type checkers / linters / formatters
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+.pyright/
+.ruff_cache/
+cython_debug/
+
+# Jupyter
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/*
+profile_default/
+ipython_config.py
+# Uncomment to ignore notebook outputs only via nbstripout, or ignore notebooks entirely:
+# *.ipynb
+
+# Django / Flask
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+instance/
+.webassets-cache
+media/
+staticfiles/
+
+# Scrapy / Celery
+.scrapy
+celerybeat-schedule
+celerybeat.pid
+
+# Sphinx / MkDocs / docs build
+docs/_build/
+docs/build/
+site/
+/site
+
+# Spyder / Rope
+.spyderproject
+.spyproject
+.ropeproject
+
+# Translations
+*.mo
+*.pot
+
+
+# -----------------------------------------------------------------------------
+# Rust
+# -----------------------------------------------------------------------------
+/target/
+**/target/
+# Libraries should ignore Cargo.lock, binaries should commit it.
+# Uncomment for libraries:
+# Cargo.lock
+**/*.rs.bk
+*.pdb
+.cargo/
+# Mutation testing
+**/mutants.out*/
+# Flamegraph / profiling
+flamegraph.svg
+perf.data
+perf.data.old
+*.profraw
+*.profdata
+
+
+# -----------------------------------------------------------------------------
+# Go
+# -----------------------------------------------------------------------------
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.dylib
+*.test
+*.out
+*.a
+*.o
+
+# Go build output
+/bin/
+/pkg/
+/vendor/
+# go.work files are usually local
+go.work
+go.work.sum
+
+# Coverage / profiling
+*.prof
+*.pprof
+coverage.txt
+coverage.html
+cover.out
+c.out
+
+# Delve debugger
+__debug_bin*
+.dlv/
+
+# Air (live reload)
+.air.toml
+tmp/
+
+
+# -----------------------------------------------------------------------------
+# Node.js / JavaScript / TypeScript
+# -----------------------------------------------------------------------------
+node_modules/
+jspm_packages/
+bower_components/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+.pnpm-store/
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+.pnp.*
+*.tsbuildinfo
+.npm
+.eslintcache
+.stylelintcache
+.parcel-cache/
+.next/
+.nuxt/
+.svelte-kit/
+.turbo/
+.vercel/
+.netlify/
+.angular/
+.docusaurus/
+.cache/
+.vite/
+storybook-static/
+dist-ssr/
+*.local
+.node_repl_history
+*.tgz
+# Uncomment for apps that don't want lockfile committed:
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+
+# -----------------------------------------------------------------------------
+# Java / Kotlin / Scala / Gradle / Maven
+# -----------------------------------------------------------------------------
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+hs_err_pid*
+replay_pid*
+.gradle/
+**/build/
+!gradle/wrapper/gradle-wrapper.jar
+.mvn/timing.properties
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+release.properties
+dependency-reduced-pom.xml
+.bsp/
+.bloop/
+.metals/
+.scala_history
+
+
+# -----------------------------------------------------------------------------
+# C / C++ / CMake
+# -----------------------------------------------------------------------------
+*.slo
+*.lo
+*.obj
+*.gch
+*.pch
+*.lai
+*.la
+*.lib
+*.ko
+*.elf
+*.ilk
+*.map
+*.exp
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps/
+.ccls-cache/
+.clangd/
+
+
+# -----------------------------------------------------------------------------
+# Ruby / PHP / .NET / Swift / Dart (brief)
+# -----------------------------------------------------------------------------
+# Ruby
+*.gem
+.bundle/
+vendor/bundle/
+.byebug_history
+# PHP
+/vendor/
+composer.phar
+# .NET
+[Bb]in/
+[Oo]bj/
+*.user
+*.suo
+.vs/
+packages/
+# Swift
+.build/
+Pods/
+*.xcodeproj/xcuserdata/
+# Dart / Flutter
+.dart_tool/
+.packages
+.pub-cache/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+
+# -----------------------------------------------------------------------------
+# Machine learning / data science: checkpoints, weights, datasets
+# -----------------------------------------------------------------------------
+# Model checkpoints & weights
+checkpoints/
+checkpoint/
+ckpt/
+ckpts/
+*.ckpt
+*.ckpt.*
+*.pt
+*.pth
+*.pth.tar
+*.bin
+*.safetensors
+*.onnx
+*.tflite
+*.pb
+*.h5
+*.hdf5
+*.keras
+*.joblib
+*.pkl
+*.pickle
+*.npy
+*.npz
+*.mlmodel
+*.gguf
+*.ggml
+*.weights
+*.caffemodel
+*.params
+*.model
+saved_model/
+saved_models/
+pretrained/
+weights/
+models/*.bin
+model_cache/
+
+# Experiment tracking & logs
+wandb/
+runs/
+lightning_logs/
+tensorboard/
+tb_logs/
+logs/
+log/
+mlruns/
+mlartifacts/
+.neptune/
+.comet/
+outputs/
+multirun/
+.hydra/
+lightning_logs/
+ray_results/
+.guild/
+catboost_info/
+optuna*.db
+*.sqlite
+
+# Hugging Face / torch / keras caches
+.huggingface/
+.cache/huggingface/
+.cache/torch/
+.keras/
+.torch/
+hf_cache/
+transformers_cache/
+
+# DVC (ignore data, keep .dvc pointer files)
+/data/**/*.dvc.bak
+.dvc/cache
+.dvc/tmp
+.dvc/config.local
+dvc_plots/
+
+# Datasets & raw data (adjust to your project layout)
+data/
+datasets/
+dataset/
+raw_data/
+processed_data/
+/input/
+/output/
+*.csv
+*.tsv
+*.parquet
+*.feather
+*.arrow
+*.avro
+*.orc
+*.jsonl
+*.ndjson
+*.zarr
+*.lmdb
+*.mdb
+*.tfrecord
+*.tfrecords
+*.record
+*.rec
+*.idx
+*.db
+*.sqlite3
+*.duckdb
+*.xls
+*.xlsx
+*.mat
+*.rds
+*.RData
+*.rda
+*.sav
+*.dta
+*.sas7bdat
+
+# Archives (often datasets / artifacts)
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.gz
+*.bz2
+*.xz
+*.7z
+*.rar
+*.zst
+
+# Media (large binaries); uncomment if not wanted in repo
+# *.mp4
+# *.avi
+# *.mov
+# *.wav
+# *.mp3
+# *.flac
+# *.png
+# *.jpg
+# *.jpeg
+
+# Keep placeholders so that empty directories can be tracked
+!data/.gitkeep
+!models/.gitkeep
+!checkpoints/.gitkeep
+!logs/.gitkeep
+!**/.gitkeep
+
+
+# -----------------------------------------------------------------------------
+# R / Julia / MATLAB
+# -----------------------------------------------------------------------------
+.Rhistory
+.Rapp.history
+.Rproj.user/
+.Ruserdata
+*.Rproj
+renv/library/
+renv/staging/
+# Julia
+*.jl.cov
+*.jl.*.cov
+*.jl.mem
+Manifest.toml
+# MATLAB
+*.asv
+*.mex*
+slprj/
+*.autosave
+
+
+# -----------------------------------------------------------------------------
+# Docker / Kubernetes / Infrastructure as Code
+# -----------------------------------------------------------------------------
+docker-compose.override.yml
+.docker/
+*.pid
+*.seed
+*.pid.lock
+
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+*.tfvars
+*.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+.terragrunt-cache/
+tfplan
+*.tfplan
+
+# Vagrant / Ansible / Pulumi
+.vagrant/
+*.retry
+Pulumi.*.yaml
+.pulumi/
+
+# Helm
+charts/*.tgz
+
+
+# -----------------------------------------------------------------------------
+# Secrets, credentials, and local configuration  (NEVER commit these)
+# -----------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+*.env
+.envrc
+.direnv/
+secrets/
+secret/
+*.secret
+*.secrets
+secrets.yml
+secrets.yaml
+secrets.json
+credentials
+credentials.json
+service-account*.json
+*-credentials.json
+client_secret*.json
+token.json
+tokens.json
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.crt
+*.cer
+*.csr
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub
+*.gpg
+.aws/
+.azure/
+.gcloud/
+.kube/
+kubeconfig
+.netrc
+.npmrc
+.pypirc
+.dockercfg
+.docker/config.json
+
+
+# -----------------------------------------------------------------------------
+# Logs, temp files, caches, and runtime artifacts
+# -----------------------------------------------------------------------------
+*.log
+*.log.*
+logs/
+npm-debug.log*
+*.tmp
+*.temp
+*.cache
+*.swp
+*.swo
+*.bak
+*.orig
+*.rej
+*.old
+*.pid
+*.lock.bak
+.tmp/
+.temp/
+tmp/
+temp/
+scratch/
+sandbox/
+.sass-cache/
+.cache/
+core
+core.*
+*.dump
+*.core
+*.trace
+nohup.out
+.coverage*
+
+# Profiling
+*.prof
+*.lprof
+*.cprof
+callgrind.out.*
+*.perf
+
+# Local databases
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+dump.rdb
+
+
+# -----------------------------------------------------------------------------
+# Build output & generated files (generic)
+# -----------------------------------------------------------------------------
+build/
+dist/
+out/
+output/
+bin/
+obj/
+release/
+debug/
+generated/
+gen/
+coverage/
+.coverage/
+reports/
+report/
+*.min.js.map
+*.map
+
+
+# -----------------------------------------------------------------------------
+# Version control & tooling leftovers
+# -----------------------------------------------------------------------------
+*.patch
+*.diff
+*.orig
+.svn/
+.hg/
+.bzr/
+.pre-commit-cache/
+.husky/_/
+.changeset/*.local.md
+.terraform.lock.hcl.bak
+
+
+# -----------------------------------------------------------------------------
+# Misc / project-specific scratch
+# -----------------------------------------------------------------------------
+notes.local.md
+TODO.local
+*.local
+.local/
+local/
+playground/
+experiments/scratch/
+*.ipynb_checkpoints
+.claude/settings.local.json
+CLAUDE.local.md
+anomaly-inspect/
